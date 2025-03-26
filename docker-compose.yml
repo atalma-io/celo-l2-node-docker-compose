@@ -58,9 +58,9 @@ services:
     volumes:
       - ${HISTORICAL_RPC_DATADIR_PATH:-geth}:/geth
       - ./scripts/:/scripts/
-    ports:
-      - ${PORT__HISTORICAL_RPC_NODE_HTTP:-9991}:8545
-      - ${PORT__HISTORICAL_RPC_NODE_WS:-9992}:8546
+    expose:
+      - 8545
+      - 8546
     logging:
       driver: "json-file"
       options:
@@ -79,8 +79,8 @@ services:
       - .env
     volumes:
       - ./scripts/start-healthcheck.sh:/opt/optimism/packages/replica-healthcheck/start-healthcheck.sh
-    ports:
-      - ${PORT__HEALTHCHECK_METRICS:-7300}:7300
+    expose:
+      - 7300
     logging:
       driver: "json-file"
       options:
@@ -100,8 +100,8 @@ services:
     volumes:
       - eigenda-data:/data
       - ./scripts/:/scripts
-    ports:
-      - ${PORT_EIGENDA_PROXY:-4242}:4242
+    expose:
+      - 4242
     extra_hosts:
       - "host.docker.internal:host-gateway"
     deploy:
@@ -131,11 +131,11 @@ services:
       - ./scripts/:/scripts
       - shared:/shared
       - ${DATADIR_PATH}:/geth
-    ports:
-      - ${PORT__OP_GETH_HTTP:-9993}:8545
-      - ${PORT__OP_GETH_WS:-9994}:8546
-      - ${PORT__OP_GETH_P2P:-39393}:${PORT__OP_GETH_P2P:-39393}/udp
-      - ${PORT__OP_GETH_P2P:-39393}:${PORT__OP_GETH_P2P:-39393}/tcp
+    expose:
+      - 8545
+      - 8546
+      - ${PORT__OP_GETH_P2P:-39393}/udp
+      - ${PORT__OP_GETH_P2P:-39393}/tcp
     environment:
       VIRTUAL_PORT: ${RPC_VIRTUAL_PORT:-9993}
       VIRTUAL_HOST: ${RPC_VIRTUAL_HOST:-miami-1.rpc.celo.atalma.io}
@@ -165,10 +165,10 @@ services:
       - ./envs/${NETWORK_NAME}/config:/chainconfig
       - ./scripts/:/scripts
       - shared:/shared
-    ports:
-      - ${PORT__OP_NODE_P2P:-9003}:9003/udp
-      - ${PORT__OP_NODE_P2P:-9003}:9003/tcp
-      - ${PORT__OP_NODE_HTTP:-9545}:9545
+    expose:
+      - 9003/udp
+      - 9003/tcp
+      - 9545
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -194,8 +194,8 @@ services:
       - ./docker/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
       - ./scripts/start-prometheus.sh:/scripts/start-prometheus.sh
-    ports:
-      - ${PORT__PROMETHEUS:-9090}:9090
+    expose:
+      - 9090
     logging:
       driver: "json-file"
       options:
@@ -218,8 +218,8 @@ services:
       - ./docker/grafana/dashboards/simple_node_dashboard.json:/var/lib/grafana/dashboards/simple_node_dashboard.json
       - grafana_data:/var/lib/grafana
       - ./scripts/start-grafana.sh:/scripts/start-grafana.sh
-    ports:
-      - ${PORT__GRAFANA:-3000}:3000
+    expose:
+      - 3000
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-}
@@ -242,8 +242,8 @@ services:
       - '--path.rootfs=/host'
     networks:
       - internal
-    ports:
-      - 127.0.0.1:9100:9100
+    expose:
+      - 9100
     pid: host
     volumes:
     - '/:/host:ro,rslave'
@@ -267,8 +267,8 @@ services:
       - ./docker/influxdb/influx_init.iql:/docker-entrypoint-initdb.d/influx_init.iql
       - influxdb_data:/var/lib/influxdb
       - ./scripts/start-influxdb.sh:/scripts/start-influxdb.sh
-    ports:
-      - ${PORT__INFLUXDB:-8086}:8086
+    expose:
+      - 8086
     logging:
       driver: "json-file"
       options:
