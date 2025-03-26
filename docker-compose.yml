@@ -1,7 +1,56 @@
 services:
+
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    networks:
+      - proxy
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - vhost-d:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+    environment:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    networks:
+      - proxy
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      nginx-proxy:
+        condition: service_started     
+    container_name: acme-companion-proxied
+    volumes_from:
+      - nginx-proxy
+    volumes:      
+      - acme-proxied:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      DEFAULT_EMAIL: aaron@atalma.io
+      NGINX_PROXY_CONTAINER: nginx-proxy      
+      DEBUG: 1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
+
   historical-rpc-node:
     image: us-docker.pkg.dev/celo-org/us.gcr.io/geth-all:1.8.9
     restart: on-failure
+    networks:
+      - internal
     stop_grace_period: 5m
     entrypoint: /scripts/start-historical-rpc-node.sh
     env_file:
@@ -13,11 +62,18 @@ services:
     ports:
       - ${PORT__HISTORICAL_RPC_NODE_HTTP:-9991}:8545
       - ${PORT__HISTORICAL_RPC_NODE_WS:-9992}:8546
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
 
   healthcheck:
     platform: linux/amd64
     image: ethereumoptimism/replica-healthcheck:${IMAGE_TAG__HEALTHCHECK:-latest}
     restart: on-failure
+    networks:
+      - internal
     entrypoint: /opt/optimism/packages/replica-healthcheck/start-healthcheck.sh
     env_file:
       - ./envs/common/healthcheck.env
@@ -26,9 +82,16 @@ services:
       - ./scripts/start-healthcheck.sh:/opt/optimism/packages/replica-healthcheck/start-healthcheck.sh
     ports:
       - ${PORT__HEALTHCHECK_METRICS:-7300}:7300
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
 
   eigenda-proxy:
     platform: linux/amd64
+    networks:
+      - internal
     image: ghcr.io/layr-labs/eigenda-proxy:v1.6.4
     restart: unless-stopped
     stop_grace_period: 5m
@@ -46,11 +109,19 @@ services:
       # If USE_LOCAL_EIGENDA_PROXY_IF_UNSET is unset or empty, then we set replicas to 1,
       # otherwise use the value of USE_LOCAL_EIGENDA_PROXY_IF_UNSET which should be 0.
       replicas: ${USE_LOCAL_EIGENDA_PROXY_IF_UNSET:-1}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
 
   op-geth:
     platform: linux/amd64
     image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-geth:celo-v2.0.0
     restart: unless-stopped
+    networks:
+      - internal
+      - proxy
     stop_grace_period: 5m
     entrypoint: /scripts/start-op-geth.sh
     env_file:
@@ -66,13 +137,26 @@ services:
       - ${PORT__OP_GETH_WS:-9994}:8546
       - ${PORT__OP_GETH_P2P:-39393}:${PORT__OP_GETH_P2P:-39393}/udp
       - ${PORT__OP_GETH_P2P:-39393}:${PORT__OP_GETH_P2P:-39393}/tcp
+    environment:
+      VIRTUAL_PORT: ${RPC_VIRTUAL_PORT:-9993}
+      VIRTUAL_HOST: ${RPC_VIRTUAL_HOST:-miami-1.rpc.celo.atalma.io}
+      LETSENCRYPT_HOST: ${RPC_VIRTUAL_HOST:-miami-1.rpc.celo.atalma.io}
+      LETSENCRYPT_EMAIL: ${DEFAULT_EMAIL:-aaron@atalma.io}
+      LETSENCRYPT_SINGLE_DOMAIN_CERTS: true
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
 
   op-node:
     platform: linux/amd64
     image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-node:celo-v2.0.0
     restart: unless-stopped
+    networks:
+      - internal
     stop_grace_period: 5m
     entrypoint: /scripts/start-op-node.sh
     env_file:
@@ -91,11 +175,18 @@ services:
     depends_on:
       op-geth:
         condition: service_started
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"        
 
   prometheus:
     platform: linux/amd64
     image: prom/prometheus:${IMAGE_TAG__PROMETHEUS:-latest}
     restart: on-failure
+    networks:
+      - internal
     entrypoint: /scripts/start-prometheus.sh
     env_file:
       - .env
@@ -105,11 +196,19 @@ services:
       - ./scripts/start-prometheus.sh:/scripts/start-prometheus.sh
     ports:
       - ${PORT__PROMETHEUS:-9090}:9090
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
 
   grafana:
     platform: linux/amd64
     image: grafana/grafana:${IMAGE_TAG__GRAFANA:-9.3.0}
     restart: on-failure
+    networks:
+      - internal
+      - proxy
     entrypoint: /scripts/start-grafana.sh
     env_file:
       - ./envs/common/grafana.env
@@ -121,11 +220,45 @@ services:
       - ./scripts/start-grafana.sh:/scripts/start-grafana.sh
     ports:
       - ${PORT__GRAFANA:-3000}:3000
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_SECURITY_ADMIN_PASSWORD:-}
+      VIRTUAL_PORT: ${GF_VIRTUAL_PORT:-3000}
+      VIRTUAL_HOST: ${GF_VIRTUAL_HOST:-monitor.miami-1.rpc.celo.atalma.io}
+      LETSENCRYPT_HOST: ${GF_VIRTUAL_HOST:-monitor.miami-1.rpc.celo.atalma.io}
+      LETSENCRYPT_EMAIL: ${DEFAULT_EMAIL:-aaron@atalma.io}
+      LETSENCRYPT_SINGLE_DOMAIN_CERTS: true      
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
+
+  node-exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+    networks:
+      - internal
+    ports:
+      - 127.0.0.1:9100:9100
+    pid: host
+    volumes:
+    - '/:/host:ro,rslave'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"       
 
   influxdb:
     platform: linux/amd64
     image: influxdb:${IMAGE_TAG__INFLUXDB:-1.8}
     restart: on-failure
+    networks:
+      - internal
     entrypoint: /scripts/start-influxdb.sh
     env_file:
       - ./envs/common/influxdb.env
@@ -136,6 +269,11 @@ services:
       - ./scripts/start-influxdb.sh:/scripts/start-influxdb.sh
     ports:
       - ${PORT__INFLUXDB:-8086}:8086
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "${LOG_MAX_SIZE}"
+        max-file: "${LOG_MAX_FILE}"      
 
 volumes:
   geth:
@@ -144,3 +282,13 @@ volumes:
   grafana_data:
   influxdb_data:
   shared:
+  certs:
+  vhost-d:
+  html:
+  acme:  
+
+networks:
+  proxy:
+    driver: bridge
+  internal:
+    driver: bridge  
