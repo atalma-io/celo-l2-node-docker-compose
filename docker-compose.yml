@@ -29,7 +29,7 @@ services:
     depends_on:
       nginx-proxy:
         condition: service_started     
-    container_name: acme-companion-proxied
+    container_name: acme-companion
     volumes_from:
       - nginx-proxy
     volumes:      
@@ -102,8 +102,8 @@ services:
       - ./scripts/:/scripts
     expose:
       - 4242
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     deploy:
       # If USE_LOCAL_EIGENDA_PROXY_IF_UNSET is unset or empty, then we set replicas to 1,
       # otherwise use the value of USE_LOCAL_EIGENDA_PROXY_IF_UNSET which should be 0.
@@ -142,8 +142,8 @@ services:
       LETSENCRYPT_HOST: ${RPC_VIRTUAL_HOST:-miami-1.rpc.celo.atalma.io}
       LETSENCRYPT_EMAIL: ${DEFAULT_EMAIL:-aaron@atalma.io}
       LETSENCRYPT_SINGLE_DOMAIN_CERTS: true
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     logging:
       driver: "json-file"
       options:
@@ -169,8 +169,8 @@ services:
       - 9003/udp
       - 9003/tcp
       - 9545
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     depends_on:
       op-geth:
         condition: service_started
