@@ -13,7 +13,6 @@ services:
       - certs:/etc/nginx/certs
       - vhost-d:/etc/nginx/vhost.d
       - html:/usr/share/nginx/html
-    environment:
     logging:
       driver: "json-file"
       options:
@@ -34,7 +33,7 @@ services:
     volumes_from:
       - nginx-proxy
     volumes:      
-      - acme-proxied:/etc/acme.sh
+      - acme:/etc/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       DEFAULT_EMAIL: aaron@atalma.io
@@ -190,6 +189,7 @@ services:
     entrypoint: /scripts/start-prometheus.sh
     env_file:
       - .env
+    user: "0"
     volumes:
       - ./docker/prometheus:/etc/prometheus
       - prometheus_data:/prometheus
@@ -221,8 +221,8 @@ services:
     ports:
       - ${PORT__GRAFANA:-3000}:3000
     environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_SECURITY_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_SECURITY_ADMIN_PASSWORD:-}
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-}
       VIRTUAL_PORT: ${GF_VIRTUAL_PORT:-3000}
       VIRTUAL_HOST: ${GF_VIRTUAL_HOST:-monitor.miami-1.rpc.celo.atalma.io}
       LETSENCRYPT_HOST: ${GF_VIRTUAL_HOST:-monitor.miami-1.rpc.celo.atalma.io}
