@@ -116,8 +116,8 @@ services:
 
   op-geth:
     platform: linux/amd64
-    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-geth:celo-v2.0.0
-    restart: unless-stopped
+    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-geth:celo-v2.0.4
+    restart: on-failure
     networks:
       - internal
       - proxy
@@ -165,12 +165,11 @@ services:
       - ./envs/${NETWORK_NAME}/config:/chainconfig
       - ./scripts/:/scripts
       - shared:/shared
+    ports:
+      - ${PORT__OP_NODE_P2P:-9222}:9222/udp
+      - ${PORT__OP_NODE_P2P:-9222}:9222/tcp
     expose:
-      - 9003/udp
-      - 9003/tcp
-      - 9545
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
+      - ${PORT__OP_NODE_HTTP:-9545}
     depends_on:
       op-geth:
         condition: service_started
