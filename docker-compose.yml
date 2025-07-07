@@ -91,8 +91,8 @@ services:
     platform: linux/amd64
     networks:
       - internal
-    image: ghcr.io/layr-labs/eigenda-proxy:v1.6.4
-    restart: unless-stopped
+    image: ghcr.io/layr-labs/eigenda-proxy:v1.8.2
+    restart: on-failure
     stop_grace_period: 5m
     entrypoint: /scripts/start-eigenda-proxy.sh
     env_file:
@@ -100,23 +100,17 @@ services:
     volumes:
       - eigenda-data:/data
       - ./scripts/:/scripts
-    expose:
-      - 4242
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
-    deploy:
-      # If USE_LOCAL_EIGENDA_PROXY_IF_UNSET is unset or empty, then we set replicas to 1,
-      # otherwise use the value of USE_LOCAL_EIGENDA_PROXY_IF_UNSET which should be 0.
-      replicas: ${USE_LOCAL_EIGENDA_PROXY_IF_UNSET:-1}
     logging:
       driver: "json-file"
       options:
         max-size: "${LOG_MAX_SIZE}"
         max-file: "${LOG_MAX_FILE}"      
+    ports:
+      - ${PORT_EIGENDA_PROXY:-4242}:4242
 
   op-geth:
     platform: linux/amd64
-    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-geth:celo-v2.0.4
+    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-geth:celo-v2.1.0
     restart: on-failure
     networks:
       - internal
@@ -152,10 +146,10 @@ services:
 
   op-node:
     platform: linux/amd64
-    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-node:celo-v2.0.0
-    restart: unless-stopped
     networks:
       - internal
+    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-node:celo-v2.1.0
+    restart: on-failure
     stop_grace_period: 5m
     entrypoint: /scripts/start-op-node.sh
     env_file:

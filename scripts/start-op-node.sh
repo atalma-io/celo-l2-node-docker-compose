@@ -17,7 +17,7 @@ fi
 
 # OP_NODE_ALTDA_DA_SERVER is picked up by the op-node binary.
 export OP_NODE_ALTDA_DA_SERVER=$EIGENDA_PROXY_ENDPOINT
-if [ -n $USE_LOCAL_EIGENDA_PROXY_IF_UNSET ]; then
+if [ -z $OP_NODE_ALTDA_DA_SERVER ]; then
   OP_NODE_ALTDA_DA_SERVER="http://eigenda-proxy:4242"
 fi
 
@@ -36,4 +36,5 @@ exec op-node \
   --metrics.port=7300 \
   --syncmode=execution-layer \
   --p2p.priv.path=/shared/op-node_p2p_priv.txt \
+  --p2p.peerstore.path=/shared/opnode_peerstore_db \
   $EXTENDED_ARG $@
