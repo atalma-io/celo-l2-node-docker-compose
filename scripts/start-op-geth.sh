@@ -71,7 +71,7 @@ exec geth \
   --discovery.port="${PORT__OP_GETH_P2P:-39393}" \
   --nat=$OP_GETH__NAT \
   --snapshot=true \
-  --verbosity=3 \
+  --verbosity=4 \
   --history.transactions=0 \
   $EXTENDED_ARG $@
 
