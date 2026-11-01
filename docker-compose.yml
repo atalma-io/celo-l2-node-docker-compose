@@ -91,7 +91,7 @@ services:
     platform: linux/amd64
     networks:
       - internal
-    image: ghcr.io/layr-labs/eigenda-proxy:v1.8.2
+    image: ghcr.io/layr-labs/eigenda-proxy:v2.6.0
     restart: on-failure
     stop_grace_period: 5m
     entrypoint: /scripts/start-eigenda-proxy.sh
@@ -108,32 +108,33 @@ services:
     ports:
       - ${PORT_EIGENDA_PROXY:-4242}:4242
 
-  op-geth:
+  op-reth:
     platform: linux/amd64
-    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-geth:celo-v2.1.2
+    image: ${IMAGE_REPO__OP_RETH:-us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-reth}:${IMAGE_TAG__OP_RETH:-celo-v1.0.7}
     restart: on-failure
     networks:
       - internal
       - proxy
     stop_grace_period: 5m
-    entrypoint: /scripts/start-op-geth.sh
+    entrypoint: /scripts/start-op-reth.sh
     env_file:
-      - ./envs/${NETWORK_NAME}/op-geth.env
+      - ./envs/${NETWORK_NAME}/op-reth.env
       - .env
     volumes:
-      - ./envs/${NETWORK_NAME}/config:/chainconfig
       - ./scripts/:/scripts
       - shared:/shared
-      - ${DATADIR_PATH}:/geth
+      - ${DATADIR_PATH}:/reth
+      - ${PROOFS_HISTORY_DATADIR_PATH:-./proofs}:/proofs
     expose:
       - 8545
       - 8546
       - 8551
+      - 9001
     ports:
-      - ${PORT__OP_GETH_P2P:-39393}/udp
-      - ${PORT__OP_GETH_P2P:-39393}/tcp
+      - ${PORT__OP_RETH_P2P:-30303}:${PORT__OP_RETH_P2P:-30303}/udp
+      - ${PORT__OP_RETH_P2P:-30303}:${PORT__OP_RETH_P2P:-30303}/tcp
     environment:
-      VIRTUAL_PORT: ${RPC_VIRTUAL_PORT:-9993}
+      VIRTUAL_PORT: ${RPC_VIRTUAL_PORT:-8545}
       VIRTUAL_HOST: ${RPC_VIRTUAL_HOST:-miami-1.rpc.celo.atalma.io}
       LETSENCRYPT_HOST: ${RPC_VIRTUAL_HOST:-miami-1.rpc.celo.atalma.io}
       LETSENCRYPT_EMAIL: ${DEFAULT_EMAIL:-aaron@atalma.io}
@@ -150,7 +151,7 @@ services:
     platform: linux/amd64
     networks:
       - internal
-    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-node:celo-v2.1.0
+    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-node:celo-v2.2.4
     restart: on-failure
     stop_grace_period: 5m
     entrypoint: /scripts/start-op-node.sh
@@ -158,7 +159,6 @@ services:
       - ./envs/${NETWORK_NAME}/op-node.env
       - .env
     volumes:
-      - ./envs/${NETWORK_NAME}/config:/chainconfig
       - ./scripts/:/scripts
       - shared:/shared
     ports:
@@ -167,7 +167,7 @@ services:
     expose:
       - ${PORT__OP_NODE_HTTP:-9545}
     depends_on:
-      op-geth:
+      op-reth:
         condition: service_started
     logging:
       driver: "json-file"
@@ -177,9 +177,11 @@ services:
 
   challenger:
     platform: linux/amd64
-    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-succinct-challenger:${IMAGE_TAG__CHALLENGER:-v1}
+    image: us-west1-docker.pkg.dev/devopsre/celo-blockchain-public/op-succinct-challenger:${IMAGE_TAG__CHALLENGER:-v2}
     restart: on-failure
-    stop_grace_period: 5m
+    stop_grace_period: 1m
+    networks:
+      - internal
     entrypoint: /scripts/start-challenger.sh
     env_file:
       - ./envs/${NETWORK_NAME}/challenger.env
@@ -188,15 +190,15 @@ services:
     environment:
       - CHALLENGER_ENABLED=${CHALLENGER__ENABLED}
       - L1_RPC=${OP_NODE__RPC_ENDPOINT}
-      - L2_RPC=http://op-geth:8545
+      - L2_RPC=${CHALLENGER__L2_NODE:-http://op-reth:8545}
       - PRIVATE_KEY=${CHALLENGER__PRIVATE_KEY}
       - FETCH_INTERVAL=${CHALLENGER__FETCH_INTERVAL_SECONDS:-30}
       - DISABLE_MONITOR_ONLY=${CHALLENGER__DISABLE_MONITOR_ONLY_MODE:-false}
+      - TX_CONFIRMATION_TIMEOUT=${CHALLENGER__TX_CONFIRMATION_TIMEOUT_SECONDS:-180}
       - CHALLENGER_METRICS_PORT=7300
+      - RUST_BACKTRACE=1
     expose: # only informative
       - "7300" # metrics
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   prometheus:
     platform: linux/amd64
@@ -235,6 +237,7 @@ services:
       - ./docker/grafana/provisioning/:/etc/grafana/provisioning/:ro
       - ./docker/grafana/dashboards/simple_node_dashboard.json:/var/lib/grafana/dashboards/simple_node_dashboard.json
       - ./docker/grafana/dashboards/challenger_dashboard.json:/var/lib/grafana/dashboards/challenger_dashboard.json
+      - ./docker/grafana/dashboards/celo_node_monitoring.json:/var/lib/grafana/dashboards/celo_node_monitoring.json
       - grafana_data:/var/lib/grafana
       - ./scripts/start-grafana.sh:/scripts/start-grafana.sh
     expose:
