@@ -33,7 +33,7 @@ exec geth \
   --http \
   --http.addr=0.0.0.0 \
   --http.port=8545 \
-  --http.api=eth,net,web3,debug \
+  --http.api=eth,net,web3 \
   --http.vhosts=* \
   $METRICS_ARGS \
   $@

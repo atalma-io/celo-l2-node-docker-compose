@@ -105,8 +105,8 @@ services:
       options:
         max-size: "${LOG_MAX_SIZE}"
         max-file: "${LOG_MAX_FILE}"      
-    ports:
-      - ${PORT_EIGENDA_PROXY:-4242}:4242
+    expose:
+      - 4242
 
   op-reth:
     platform: linux/amd64
@@ -289,8 +289,8 @@ services:
       - ./docker/influxdb/influx_init.iql:/docker-entrypoint-initdb.d/influx_init.iql
       - influxdb_data:/var/lib/influxdb
       - ./scripts/start-influxdb.sh:/scripts/start-influxdb.sh
-    ports:
-      - "8086:8086"
+    expose:
+      - 8086
     logging:
       driver: "json-file"
       options:
