@@ -27,8 +27,13 @@ fi
 # Start historical-rpc-node.
 exec geth \
   --$NETWORK_NAME \
-  --datadir=$DATADIR \
+  --datadir=${DATADIR:-/geth} \
   --gcmode=archive \
   --syncmode=full \
+  --http \
+  --http.addr=0.0.0.0 \
+  --http.port=8545 \
+  --http.api=eth,net,web3,debug \
+  --http.vhosts=* \
   $METRICS_ARGS \
   $@
