@@ -166,6 +166,9 @@ services:
       - ${PORT__OP_NODE_P2P:-9222}:9222/tcp
     expose:
       - ${PORT__OP_NODE_HTTP:-9545}
+    sysctls:
+      # Mitigate CVE-2026-98432: Go enables MPTCP on the public P2P listener.
+      net.mptcp.enabled: 0
     depends_on:
       op-reth:
         condition: service_started
